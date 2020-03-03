@@ -21,14 +21,6 @@ type sliceAlloc struct {
 	buf []byte
 }
 
-type Writer struct {
-	err error
-	buf []byte
-
-	wr   io.Writer
-	wpos int
-}
-
 func NewReader(rd io.Reader) *Reader {
 	return NewReaderSize(rd, 1024)
 }
@@ -138,16 +130,6 @@ func (b *Reader) ReadFull(n int) ([]byte, error) {
 	return buf, nil
 }
 
-func NewWriter(wr io.Writer) *Writer {
-	return NewWriterSize(wr, 1024)
-}
-
-func NewWriterSize(wr io.Writer, size int) *Writer {
-	if size <= 0 {
-		size = 1024
-	}
-	return &Writer{wr: wr, buf: make([]byte, size)}
-}
 
 func (d *sliceAlloc) Make(n int) (ss []byte) {
 	switch {
@@ -162,80 +144,6 @@ func (d *sliceAlloc) Make(n int) (ss []byte) {
 		ss, d.buf = d.buf[:n:n], d.buf[n:]
 		return ss
 	}
-}
-
-
-func (b *Writer) Flush() error {
-	return b.flush()
-}
-
-func (b *Writer) flush() error {
-	if b.err != nil {
-		return b.err
-	}
-	if b.wpos == 0 {
-		return nil
-	}
-	n, err := b.wr.Write(b.buf[:b.wpos])
-	if err != nil {
-		b.err = err
-	} else if n < b.wpos {
-		b.err = io.ErrShortWrite
-	} else {
-		b.wpos = 0
-	}
-	return b.err
-}
-
-func (b *Writer) available() int {
-	return len(b.buf) - b.wpos
-}
-func (b *Writer) Write(p []byte) (nn int, err error) {
-	for b.err == nil && len(p) > b.available() {
-		var n int
-		if b.wpos == 0 {
-			n, b.err = b.wr.Write(p)
-		} else {
-			n = copy(b.buf[b.wpos:], p)
-			b.wpos += n
-			b.flush()
-		}
-		nn, p = nn+n, p[n:]
-	}
-	if b.err != nil || len(p) == 0 {
-		return nn, b.err
-	}
-	n := copy(b.buf[b.wpos:], p)
-	b.wpos += n
-	return nn + n, nil
-}
-
-
-func (b *Writer) WriteByte(c byte) error {
-	if b.err != nil {
-		return b.err
-	}
-	if b.available() == 0 && b.flush() != nil {
-		return b.err
-	}
-	b.buf[b.wpos] = c
-	b.wpos++
-	return nil
-}
-
-func (b *Writer) WriteString(s string) (nn int, err error) {
-	for b.err == nil && len(s) > b.available() {
-		n := copy(b.buf[b.wpos:], s)
-		b.wpos += n
-		b.flush()
-		nn, s = nn+n, s[n:]
-	}
-	if b.err != nil || len(s) == 0 {
-		return nn, b.err
-	}
-	n := copy(b.buf[b.wpos:], s)
-	b.wpos += n
-	return nn + n, nil
 }
 
 func (b *Reader) PeekByte() (byte, error) {
