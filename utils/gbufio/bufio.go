@@ -1,4 +1,4 @@
-package bufio
+package gbufio
 
 import (
 	"bufio"
@@ -19,6 +19,14 @@ type Reader struct {
 
 type sliceAlloc struct {
 	buf []byte
+}
+
+type Writer struct {
+	err error
+	buf []byte
+
+	wr   io.Writer
+	wpos int
 }
 
 func NewReader(rd io.Reader) *Reader {
@@ -128,14 +136,6 @@ func (b *Reader) ReadFull(n int) ([]byte, error) {
 	}
 	b.rpos += n
 	return buf, nil
-}
-
-type Writer struct {
-	err error
-	buf []byte
-
-	wr   io.Writer
-	wpos int
 }
 
 func NewWriter(wr io.Writer) *Writer {
