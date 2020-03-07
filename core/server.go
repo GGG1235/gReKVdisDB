@@ -2,7 +2,7 @@ package core
 
 import (
 	"fmt"
-	"gReKVdisDB/lists"
+	"gReKVdisDB/core/date_structure/lists"
 	"log"
 	"os"
 )

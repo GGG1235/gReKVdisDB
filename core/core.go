@@ -45,8 +45,8 @@ func AddCommand(c *Client, s *Server) {
 				}
 			}
 		}
-		geohashEncodeWGS84(xy[0], xy[1], GEO_STEP_MAX, &hash)
-		bits := geohashAlign52Bits(hash)
+		hashEncodeWGS84(xy[0], xy[1], GEO_STEP_MAX, &hash)
+		bits := hashAlign52Bits(hash)
 		score := utils.CreateObject(utils.ObjectTypeString, bits)
 
 		val := c.Argv[2+i*3+2]
@@ -62,7 +62,7 @@ func AddCommand(c *Client, s *Server) {
 
 
 func HashCommand(c *Client, s *Server) {
-	geoAlphabet := "0123456789bcdefghjkmnpqrstuvwxyz"
+	Alphabet := "0123456789bcdefghjkmnpqrstuvwxyz"
 	zobj := lookupKey(c.Db, c.Argv[1])
 	if zobj != nil && zobj.ObjectType != utils.OBJ_ZSET {
 		return
@@ -85,13 +85,13 @@ func HashCommand(c *Client, s *Server) {
 		r[0].max = 180
 		r[1].min = -90
 		r[1].max = 90
-		geohashEncode(&r[0], &r[1], xy[0], xy[1], 26, &hash)
+		hashEncode(&r[0], &r[1], xy[0], xy[1], 26, &hash)
 
 		temp := ""
 		for i := 0; i < 11; i++ {
 			count := 52 - (i+1)*5
 			idx := (hash.bits >> (uint(count))) & 0x1f
-			temp += string(geoAlphabet[idx])
+			temp += string(Alphabet[idx])
 		}
 		buf += temp
 		buf += ";"
@@ -151,20 +151,20 @@ func DistCommand(c *Client, s *Server) {
 		return
 	}
 
-	buf := geohashGetDistance(xyxy1[0], xyxy1[1], xyxy2[0], xyxy2[1])
+	buf := hashGetDistance(xyxy1[0], xyxy1[1], xyxy2[0], xyxy2[1])
 	addReplyStatus(c, fmt.Sprint(buf))
 }
 
 func RadiusCommand(c *Client, s *Server) {
-	georadiusGeneric(c, RADIUS_COORDS)
+	radiusGeneric(c, RADIUS_COORDS)
 }
 
 func RadiusByMemberCommand(c *Client, s *Server) {
-	georadiusGeneric(c, RADIUS_MEMBER)
+	radiusGeneric(c, RADIUS_MEMBER)
 }
 
 
-func georadiusGeneric(c *Client, flags uint) {
+func radiusGeneric(c *Client, flags uint) {
 	var storekey *utils.GKVDBObject
 	storedist := 0
 
@@ -196,7 +196,7 @@ func georadiusGeneric(c *Client, flags uint) {
 		
 		base_args = 7
 	} else {
-		addReplyError(c, "Unknown georadius search type")
+		addReplyError(c, "Unknown radius search type")
 		return
 	}
 
@@ -264,11 +264,11 @@ func georadiusGeneric(c *Client, flags uint) {
 	}
 
 	
-	georadius := geohashGetAreasByRadiusWGS84(xy[0], xy[1], radius_meters)
+	radius := hashGetAreasByRadiusWGS84(xy[0], xy[1], radius_meters)
 
 	/* Search the zset for all matching points */
-	ga := geoArrayCreate() 
-	membersOfAllNeighbors(zobj, georadius, xy[0], xy[1], radius_meters, ga)
+	ga := ArrayCreate() 
+	membersOfAllNeighbors(zobj, radius, xy[0], xy[1], radius_meters, ga)
 
 	if ga.used == 0 && storekey == nil {
 		addReplyError(c, "emptymultibulk")
@@ -315,9 +315,9 @@ func georadiusGeneric(c *Client, flags uint) {
 
 }
 
-func geoArrayCreate() *geoArray {
-	ga := new(geoArray)
-	ga.array = make([]*geoPoint, 0)
+func ArrayCreate() *Array {
+	ga := new(Array)
+	ga.array = make([]*Point, 0)
 	ga.buckets = 0
 	ga.used = 0
 	return ga
@@ -341,7 +341,7 @@ func extractUnitOrReply(c *Client, uint utils.GKVDBObject) float64 {
 	}
 }
 
-func membersOfAllNeighbors(zobj *utils.GKVDBObject, n HashRadius, lon float64, lat float64, radius float64, ga *geoArray) int {
+func membersOfAllNeighbors(zobj *utils.GKVDBObject, n HashRadius, lon float64, lat float64, radius float64, ga *Array) int {
 	neighbors := [9]HashBits{}
 	var count, last_processed int
 	debugmsg := 0
@@ -364,9 +364,9 @@ func membersOfAllNeighbors(zobj *utils.GKVDBObject, n HashRadius, lon float64, l
 		/* Debugging info. */
 		if debugmsg > 0 {
 			var long_range, lat_range HashRange
-			geohashGetCoordRange(&long_range, &lat_range)
+			hashGetCoordRange(&long_range, &lat_range)
 			myarea := new(HashArea)
-			geohashDecode(long_range, lat_range, neighbors[i], myarea)
+			hashDecode(long_range, lat_range, neighbors[i], myarea)
 
 			/* Dump center square. */
 			fmt.Println("neighbors[%d]:\n", i)
@@ -394,20 +394,20 @@ func membersOfAllNeighbors(zobj *utils.GKVDBObject, n HashRadius, lon float64, l
 	return count
 }
 
-func membersOfHashBox(zobj *utils.GKVDBObject, hash HashBits, ga *geoArray, lon float64, lat float64, radius float64) int {
+func membersOfHashBox(zobj *utils.GKVDBObject, hash HashBits, ga *Array, lon float64, lat float64, radius float64) int {
 	var min, max HashFix52Bits
 
 	scoresOfHashBox(hash, &min, &max)
-	return geoGetPointsInRange(zobj, float64(min), float64(max), lon, lat, radius, ga)
+	return GetPointsInRange(zobj, float64(min), float64(max), lon, lat, radius, ga)
 }
 
 func scoresOfHashBox(hash HashBits, min *HashFix52Bits, max *HashFix52Bits) {
-	*min = geohashAlign52Bits(hash)
+	*min = hashAlign52Bits(hash)
 	hash.bits++
-	*max = geohashAlign52Bits(hash)
+	*max = hashAlign52Bits(hash)
 }
 
-func geoGetPointsInRange(zobj *utils.GKVDBObject, min float64, max float64, lon float64, lat float64, radius float64, ga *geoArray) int {
+func GetPointsInRange(zobj *utils.GKVDBObject, min float64, max float64, lon float64, lat float64, radius float64, ga *Array) int {
 	zrange := zRangeSpec{min: min, max: max, minEx: 0, maxEx: 1}
 	var origincount uint = ga.used
 	
@@ -426,7 +426,7 @@ func geoGetPointsInRange(zobj *utils.GKVDBObject, min float64, max float64, lon 
 			if !zslValueLteMax(ln.score, &zrange) {
 				break
 			}
-			geoAppendIfWithinRadius(ga, lon, lat, radius, ln.score, ele)
+			AppendIfWithinRadius(ga, lon, lat, radius, ln.score, ele)
 			ln = ln.level[0].forward
 		}
 	} else {
@@ -435,18 +435,18 @@ func geoGetPointsInRange(zobj *utils.GKVDBObject, min float64, max float64, lon 
 	return int(ga.used - origincount)
 }
 
-func geoAppendIfWithinRadius(ga *geoArray, lon float64, lat float64, radius float64, score float64, member string) int {
+func AppendIfWithinRadius(ga *Array, lon float64, lat float64, radius float64, score float64, member string) int {
 	var distance float64
 	xy := [2]float64{}
 
 	if !decodehash(score, &xy) {
 		return utils.C_ERR
 	}
-	if !geohashGetDistanceIfInRadiusWGS84(lon, lat, xy[0], xy[1], radius, &distance) {
+	if !hashGetDistanceIfInRadiusWGS84(lon, lat, xy[0], xy[1], radius, &distance) {
 		return utils.C_ERR
 	}
 
-	gp := geoArrayAppend(ga)
+	gp := ArrayAppend(ga)
 	gp.longitude = xy[0]
 	gp.latitude = xy[1]
 	gp.dist = distance
@@ -455,7 +455,7 @@ func geoAppendIfWithinRadius(ga *geoArray, lon float64, lat float64, radius floa
 	return utils.C_OK
 }
 
-func geoArrayAppend(ga *geoArray) *geoPoint {
+func ArrayAppend(ga *Array) *Point {
 	if ga.used == ga.buckets {
 		if ga.buckets == 0 {
 			ga.buckets = 8
@@ -463,7 +463,7 @@ func geoArrayAppend(ga *geoArray) *geoPoint {
 			ga.buckets = ga.buckets * 2
 		}
 	}
-	gp := new(geoPoint)
+	gp := new(Point)
 	ga.array = append(ga.array, gp)
 	ga.used++
 	return gp

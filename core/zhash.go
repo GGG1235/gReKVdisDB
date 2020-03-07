@@ -52,13 +52,13 @@ type HashNeighbors struct {
 	south_west HashBits
 }
 
-type geoArray struct {
-	array   []*geoPoint
+type Array struct {
+	array   []*Point
 	buckets uint
 	used    uint
 }
 
-type geoPoint struct {
+type Point struct {
 	longitude float64
 	latitude  float64
 	dist      float64
@@ -73,26 +73,26 @@ func rad_deg(ang float64) float64 {
 	return ang / D_R
 }
 
-func geohashEncodeWGS84(longitude float64, latitude float64, step uint8, hash *HashBits) int {
-	return geohashEncodeType(longitude, latitude, step, hash)
+func hashEncodeWGS84(longitude float64, latitude float64, step uint8, hash *HashBits) int {
+	return hashEncodeType(longitude, latitude, step, hash)
 }
 
-func geohashEncodeType(longitude float64, latitude float64, step uint8, hash *HashBits) int {
+func hashEncodeType(longitude float64, latitude float64, step uint8, hash *HashBits) int {
 	r := [2]HashRange{}
-	geohashGetCoordRange(&r[0], &r[1])
-	return geohashEncode(&r[0], &r[1], longitude, latitude, step, hash)
+	hashGetCoordRange(&r[0], &r[1])
+	return hashEncode(&r[0], &r[1], longitude, latitude, step, hash)
 }
 
 /* These are constraints from EPSG:900913 / EPSG:3785 / OSGEO:41001 */
-/* We can't geocode at the north/south pole. */
-func geohashGetCoordRange(long_range *HashRange, lat_range *HashRange) {
+/* We can't code at the north/south pole. */
+func hashGetCoordRange(long_range *HashRange, lat_range *HashRange) {
 	long_range.max = GEO_LONG_MAX
 	long_range.min = GEO_LONG_MIN
 	lat_range.max = GEO_LAT_MAX
 	lat_range.min = GEO_LAT_MIN
 }
 
-func geohashEncode(long_range *HashRange, lat_range *HashRange, longitude float64, latitude float64, step uint8,
+func hashEncode(long_range *HashRange, lat_range *HashRange, longitude float64, latitude float64, step uint8,
 	hash *HashBits) int {
 	/* Check basic arguments sanity. */
 
@@ -178,7 +178,7 @@ func deinterleave64(interleaved uint64) uint64 {
 	return x | (y << 32)
 }
 
-func geohashAlign52Bits(hash HashBits) uint64 {
+func hashAlign52Bits(hash HashBits) uint64 {
 	bits := hash.bits
 	bits <<= (52 - hash.step*2)
 	return bits
@@ -186,31 +186,31 @@ func geohashAlign52Bits(hash HashBits) uint64 {
 
 func decodehash(bits float64, xy *[2]float64) bool {
 	hash := HashBits{bits: uint64(bits), step: GEO_STEP_MAX}
-	return geohashDecodeToLongLatWGS84(hash, xy)
+	return hashDecodeToLongLatWGS84(hash, xy)
 }
-func geohashDecodeToLongLatWGS84(hash HashBits, xy *[2]float64) bool {
-	return geohashDecodeToLongLatType(hash, xy)
+func hashDecodeToLongLatWGS84(hash HashBits, xy *[2]float64) bool {
+	return hashDecodeToLongLatType(hash, xy)
 }
 
-func geohashDecodeToLongLatType(hash HashBits, xy *[2]float64) bool {
+func hashDecodeToLongLatType(hash HashBits, xy *[2]float64) bool {
 	area := new(HashArea)
-	if xy == nil || !geohashDecodeType(hash, area) {
+	if xy == nil || !hashDecodeType(hash, area) {
 		return false
 	}
-	return geohashDecodeAreaToLongLat(area, xy)
+	return hashDecodeAreaToLongLat(area, xy)
 }
 
-func geohashDecodeType(hash HashBits, area *HashArea) bool {
+func hashDecodeType(hash HashBits, area *HashArea) bool {
 	r := [2]HashRange{}
-	geohashGetCoordRange(&r[0], &r[1])
-	return geohashDecode(r[0], r[1], hash, area)
+	hashGetCoordRange(&r[0], &r[1])
+	return hashDecode(r[0], r[1], hash, area)
 }
 
-func geohashDecodeWGS84(hash HashBits, area *HashArea) bool {
-	return geohashDecodeType(hash, area)
+func hashDecodeWGS84(hash HashBits, area *HashArea) bool {
+	return hashDecodeType(hash, area)
 }
 
-func geohashDecodeAreaToLongLat(area *HashArea, xy *[2]float64) bool {
+func hashDecodeAreaToLongLat(area *HashArea, xy *[2]float64) bool {
 	if xy == nil {
 		return false
 	}
@@ -228,7 +228,7 @@ func rangeIsZero(r HashRange) bool {
 	return r.max == 0 && r.min == 0
 }
 
-func geohashDecode(long_range HashRange, lat_range HashRange, hash HashBits, area *HashArea) bool {
+func hashDecode(long_range HashRange, lat_range HashRange, hash HashBits, area *HashArea) bool {
 	if hashIsZero(hash) || area == nil || rangeIsZero(lat_range) || rangeIsZero(long_range) {
 		return false
 	}
@@ -251,7 +251,7 @@ func geohashDecode(long_range HashRange, lat_range HashRange, hash HashBits, are
 	return true
 }
 
-func geohashGetDistance(lon1d float64, lat1d float64, lon2d float64, lat2d float64) float64 {
+func hashGetDistance(lon1d float64, lat1d float64, lon2d float64, lat2d float64) float64 {
 	var lat1r, lon1r, lat2r, lon2r, u, v float64
 	lat1r = deg_rad(lat1d)
 	lon1r = deg_rad(lon1d)
@@ -263,11 +263,11 @@ func geohashGetDistance(lon1d float64, lat1d float64, lon2d float64, lat2d float
 		math.Asin(math.Sqrt(u*u+math.Cos(lat1r)*math.Cos(lat2r)*v*v))
 }
 
-func geohashGetAreasByRadiusWGS84(longitude float64, latitude float64, radius_meters float64) HashRadius {
-	return geohashGetAreasByRadius(longitude, latitude, radius_meters)
+func hashGetAreasByRadiusWGS84(longitude float64, latitude float64, radius_meters float64) HashRadius {
+	return hashGetAreasByRadius(longitude, latitude, radius_meters)
 }
 
-func geohashGetAreasByRadius(longitude float64, latitude float64, radius_meters float64) HashRadius {
+func hashGetAreasByRadius(longitude float64, latitude float64, radius_meters float64) HashRadius {
 	var long_range, lat_range HashRange
 	var radius HashRadius
 	var hash HashBits
@@ -277,46 +277,46 @@ func geohashGetAreasByRadius(longitude float64, latitude float64, radius_meters 
 	var bounds [4]float64
 	var steps int
 
-	geohashBoundingBox(longitude, latitude, radius_meters, &bounds)
+	hashBoundingBox(longitude, latitude, radius_meters, &bounds)
 	min_lon = bounds[0]
 	min_lat = bounds[1]
 	max_lon = bounds[2]
 	max_lat = bounds[3]
 
-	steps = int(geohashEstimateStepsByRadius(radius_meters, latitude))
+	steps = int(hashEstimateStepsByRadius(radius_meters, latitude))
 
-	geohashGetCoordRange(&long_range, &lat_range)                                      //获取经纬度范围 南北极无法geocode
-	geohashEncode(&long_range, &lat_range, longitude, latitude, (uint8(steps)), &hash) //geohash
-	geohashNeighbors(&hash, &neighbors)                                                //计算其余8个框的geohash
-	geohashDecode(long_range, lat_range, hash, &area)
+	hashGetCoordRange(&long_range, &lat_range)                                      //获取经纬度范围 南北极无法code
+	hashEncode(&long_range, &lat_range, longitude, latitude, (uint8(steps)), &hash) //hash
+	hashNeighbors(&hash, &neighbors)                                                //计算其余8个框的hash
+	hashDecode(long_range, lat_range, hash, &area)
 
 	decrease_step := 0
 	{
 		var north, south, east, west HashArea
 
-		geohashDecode(long_range, lat_range, neighbors.north, &north)
-		geohashDecode(long_range, lat_range, neighbors.south, &south)
-		geohashDecode(long_range, lat_range, neighbors.east, &east)
-		geohashDecode(long_range, lat_range, neighbors.west, &west)
+		hashDecode(long_range, lat_range, neighbors.north, &north)
+		hashDecode(long_range, lat_range, neighbors.south, &south)
+		hashDecode(long_range, lat_range, neighbors.east, &east)
+		hashDecode(long_range, lat_range, neighbors.west, &west)
 
-		if geohashGetDistance(longitude, latitude, longitude, north.latitude.max) < radius_meters {
+		if hashGetDistance(longitude, latitude, longitude, north.latitude.max) < radius_meters {
 			decrease_step = 1
 		}
-		if geohashGetDistance(longitude, latitude, longitude, south.latitude.min) < radius_meters {
+		if hashGetDistance(longitude, latitude, longitude, south.latitude.min) < radius_meters {
 			decrease_step = 1
 		}
-		if geohashGetDistance(longitude, latitude, east.longitude.max, latitude) < radius_meters {
+		if hashGetDistance(longitude, latitude, east.longitude.max, latitude) < radius_meters {
 			decrease_step = 1
 		}
-		if geohashGetDistance(longitude, latitude, west.longitude.min, latitude) < radius_meters {
+		if hashGetDistance(longitude, latitude, west.longitude.min, latitude) < radius_meters {
 			decrease_step = 1
 		}
 	}
 	if steps > 1 && decrease_step > 0 {
 		steps--
-		geohashEncode(&long_range, &lat_range, longitude, latitude, uint8(steps), &hash)
-		geohashNeighbors(&hash, &neighbors)
-		geohashDecode(long_range, lat_range, hash, &area)
+		hashEncode(&long_range, &lat_range, longitude, latitude, uint8(steps), &hash)
+		hashNeighbors(&hash, &neighbors)
+		hashDecode(long_range, lat_range, hash, &area)
 	}
 	/* Exclude the search areas that are useless. */
 	if steps >= 2 {
@@ -352,7 +352,7 @@ func GZERO(s *HashBits) {
 }
 
 //计算经度、纬度为中心的搜索区域的边界框
-func geohashBoundingBox(longitude float64, latitude float64, radius_meters float64, bounds *[4]float64) bool {
+func hashBoundingBox(longitude float64, latitude float64, radius_meters float64, bounds *[4]float64) bool {
 	if bounds == nil {
 		return false
 	}
@@ -364,7 +364,7 @@ func geohashBoundingBox(longitude float64, latitude float64, radius_meters float
 }
 
 //计算bits 位的精度
-func geohashEstimateStepsByRadius(range_meters float64, lat float64) uint8 {
+func hashEstimateStepsByRadius(range_meters float64, lat float64) uint8 {
 	if range_meters == 0 {
 		return 26
 	}
@@ -392,8 +392,8 @@ func geohashEstimateStepsByRadius(range_meters float64, lat float64) uint8 {
 	return step
 }
 
-//计算其余8个框的geohash
-func geohashNeighbors(hash *HashBits, neighbors *HashNeighbors) {
+//计算其余8个框的hash
+func hashNeighbors(hash *HashBits, neighbors *HashNeighbors) {
 	neighbors.east = *hash
 	neighbors.west = *hash
 	neighbors.north = *hash
@@ -466,14 +466,14 @@ func hash_move_y(hash *HashBits, d int8) {
 	hash.bits = (x | y)
 }
 
-func geohashGetDistanceIfInRadius(x1 float64, y1 float64, x2 float64, y2 float64, radius float64, distance *float64) bool {
-	*distance = geohashGetDistance(x1, y1, x2, y2)
+func hashGetDistanceIfInRadius(x1 float64, y1 float64, x2 float64, y2 float64, radius float64, distance *float64) bool {
+	*distance = hashGetDistance(x1, y1, x2, y2)
 	if *distance > radius {
 		return false
 	}
 	return true
 }
 
-func geohashGetDistanceIfInRadiusWGS84(x1 float64, y1 float64, x2 float64, y2 float64, radius float64, distance *float64) bool {
-	return geohashGetDistanceIfInRadius(x1, y1, x2, y2, radius, distance)
+func hashGetDistanceIfInRadiusWGS84(x1 float64, y1 float64, x2 float64, y2 float64, radius float64, distance *float64) bool {
+	return hashGetDistanceIfInRadius(x1, y1, x2, y2, radius, distance)
 }

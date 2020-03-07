@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"gReKVdisDB/aof"
 	"gReKVdisDB/core"
-	"gReKVdisDB/lists"
+	"gReKVdisDB/core/date_structure/lists"
 	"gReKVdisDB/utils"
 	"log"
 	"net"
