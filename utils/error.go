@@ -3,6 +3,7 @@ package utils
 import (
 	"errors"
 	"log"
+	"os"
 )
 
 var (
@@ -25,4 +26,11 @@ func ErrorsTrace(err error) error {
 		log.Println("errors Tracing", err.Error())
 	}
 	return err
+}
+
+func CheckError(err error) {
+	if err != nil {
+		log.Println("err ", err.Error())
+		os.Exit(1)
+	}
 }

@@ -41,7 +41,7 @@ func main() {
 
 	initServer()
 
-	netListen, err := net.Listen("tcp", "127.0.0.1:9736")
+	netListen, err := net.Listen("tcp", "0.0.0.0:9736")
 	if err != nil {
 		log.Print("listen err ")
 	}
