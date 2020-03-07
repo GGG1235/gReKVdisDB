@@ -27,11 +27,11 @@ func main() {
 	argc := len(os.Args)
 	if argc >= 2 {
 		
-		if argv[1] == "-v" || argv[1] == "--version" {
-			version()
+		if argv[1] == "-v" || argv[1] == "--utils" {
+			utils.Version()
 		}
 		if argv[1] == "--help" || argv[1] == "-h" {
-			usage()
+			utils.Usage()
 		}
 	}
 
@@ -156,36 +156,9 @@ func sigHandler(c chan os.Signal) {
 	for s := range c {
 		switch s {
 		case syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT:
-			exitHandler()
+			utils.ExitHandler()
 		default:
 			fmt.Println("signal ", s)
 		}
 	}
-}
-
-func exitHandler() {
-	fmt.Println("exiting smoothly ...")
-	fmt.Println("bye ")
-	os.Exit(0)
-}
-
-func version() {
-	println("Gkvdb server v=0.0.1 sha=xxxxxxx:001 malloc=libc-go bits=64 ")
-	os.Exit(0)
-}
-
-func usage() {
-	println("Usage: ./gkvdb-server [/path/to/redis.conf] [options]")
-	println("       ./gkvdb-server - (read config from stdin)")
-	println("       ./gkvdb-server -v or --version")
-	println("       ./gkvdb-server -h or --help")
-	println("Examples:")
-	println("       ./gkvdb-server (run the server with default conf)")
-	println("       ./gkvdb-server /etc/redis/6379.conf")
-	println("       ./gkvdb-server --port 7777")
-	println("       ./gkvdb-server --port 7777 --slaveof 127.0.0.1 8888")
-	println("       ./gkvdb-server /etc/myredis.conf --loglevel verbose")
-	println("Sentinel mode:")
-	println("       ./gkvdb-server /etc/sentinel.conf --sentinel")
-	os.Exit(0)
 }

@@ -23,7 +23,7 @@ func main() {
 	}
 
 	reader := bufio.NewReader(os.Stdin)
-	fmt.Println("Hi GkvDB")
+	fmt.Println("Hi GkvDB!")
 	tcpAddr, err := net.ResolveTCPAddr("tcp4", IPPort)
 	utils.CheckError(err)
 
@@ -57,7 +57,6 @@ func send2Server(msg string, conn net.Conn) (n int, err error) {
 	if e != nil {
 		return 0, e
 	}
-	
 	n, err = conn.Write(p)
 	return n, err
 }
