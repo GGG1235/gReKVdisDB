@@ -14,7 +14,7 @@ func main() {
 	IPPort := "127.0.0.1:9736"
 
 	reader := bufio.NewReader(os.Stdin)
-	fmt.Println("Hi Godis")
+	fmt.Println("Hi GkvDB")
 	tcpAddr, err := net.ResolveTCPAddr("tcp4", IPPort)
 	checkError(err)
 

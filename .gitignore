@@ -15,3 +15,5 @@
 # vendor/
 .idea
 !/aof/gkvdb.aof
+!/gkvdb-cli
+!/gkvdb-server

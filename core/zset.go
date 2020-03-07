@@ -175,15 +175,6 @@ func dictFind(d *dict, key string) *utils.GKVDBObject {
 	return nil
 }
 
-/*
- * 创建一个成员为 obj ，分值为 score 的新节点，
- * 并将这个新节点插入到跳跃表 zsl 中。
- *
- * 函数的返回值为新节点。
- *
- * T_wrost = O(N^2), T_avg = O(N log N)
- */
-
 func zslInsert(zsl *zSkipList, score float64, ele string) *zSkipListNode {
 	update := make([]*zSkipListNode, ZSKIPLIST_MAXLEVEL)
 	rank := make([]uint, ZSKIPLIST_MAXLEVEL)
