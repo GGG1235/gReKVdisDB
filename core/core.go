@@ -17,7 +17,7 @@ const SORT_ASC = 1
 const SORT_DESC = 2
 
 
-func GeoAddCommand(c *Client, s *Server) {
+func AddCommand(c *Client, s *Server) {
 	
 	if (c.Argc-2)%3 != 0 {
 		addReplyError(c, "syntax error. Try GEOADD key [x1] [y1] [name1] "+
@@ -32,7 +32,7 @@ func GeoAddCommand(c *Client, s *Server) {
 
 	for i := 0; i < elements; i++ {
 		var xy [2]float64
-		var hash GeoHashBits
+		var hash HashBits
 		
 		if lngObj, ok1 := c.Argv[i*3+2].Ptr.(string); ok1 {
 			if latObj, ok2 := c.Argv[i*3+3].Ptr.(string); ok2 {
@@ -61,7 +61,7 @@ func GeoAddCommand(c *Client, s *Server) {
 }
 
 
-func GeoHashCommand(c *Client, s *Server) {
+func HashCommand(c *Client, s *Server) {
 	geoAlphabet := "0123456789bcdefghjkmnpqrstuvwxyz"
 	zobj := lookupKey(c.Db, c.Argv[1])
 	if zobj != nil && zobj.ObjectType != utils.OBJ_ZSET {
@@ -75,12 +75,12 @@ func GeoHashCommand(c *Client, s *Server) {
 			return
 		}
 		var xy [2]float64
-		if !decodeGeohash(score, &xy) {
+		if !decodehash(score, &xy) {
 			addReplyError(c, "hash get error")
 			continue
 		}
-		r := [2]GeoHashRange{}
-		var hash GeoHashBits
+		r := [2]HashRange{}
+		var hash HashBits
 		r[0].min = -180
 		r[0].max = 180
 		r[1].min = -90
@@ -100,7 +100,7 @@ func GeoHashCommand(c *Client, s *Server) {
 }
 
 
-func GeoPosCommand(c *Client, s *Server) {
+func PosCommand(c *Client, s *Server) {
 	zobj := lookupKey(c.Db, c.Argv[1])
 	if zobj != nil && zobj.ObjectType != utils.OBJ_ZSET {
 		return
@@ -114,7 +114,7 @@ func GeoPosCommand(c *Client, s *Server) {
 			return
 		}
 		var xy [2]float64
-		if !decodeGeohash(score, &xy) {
+		if !decodehash(score, &xy) {
 			addReplyError(c, "hash get error")
 			continue
 		}
@@ -128,7 +128,7 @@ func GeoPosCommand(c *Client, s *Server) {
 }
 
 
-func GeoDistCommand(c *Client, s *Server) {
+func DistCommand(c *Client, s *Server) {
 	if c.Argc >= 5 {
 		addReplyError(c, "params error")
 		return
@@ -146,7 +146,7 @@ func GeoDistCommand(c *Client, s *Server) {
 		return
 	}
 
-	if !decodeGeohash(score1, &xyxy1) || !decodeGeohash(score2, &xyxy2) {
+	if !decodehash(score1, &xyxy1) || !decodehash(score2, &xyxy2) {
 		addReplyError(c, "hash get error")
 		return
 	}
@@ -155,11 +155,11 @@ func GeoDistCommand(c *Client, s *Server) {
 	addReplyStatus(c, fmt.Sprint(buf))
 }
 
-func GeoRadiusCommand(c *Client, s *Server) {
+func RadiusCommand(c *Client, s *Server) {
 	georadiusGeneric(c, RADIUS_COORDS)
 }
 
-func GeoRadiusByMemberCommand(c *Client, s *Server) {
+func RadiusByMemberCommand(c *Client, s *Server) {
 	georadiusGeneric(c, RADIUS_MEMBER)
 }
 
@@ -341,8 +341,8 @@ func extractUnitOrReply(c *Client, uint utils.GKVDBObject) float64 {
 	}
 }
 
-func membersOfAllNeighbors(zobj *utils.GKVDBObject, n GeoHashRadius, lon float64, lat float64, radius float64, ga *geoArray) int {
-	neighbors := [9]GeoHashBits{}
+func membersOfAllNeighbors(zobj *utils.GKVDBObject, n HashRadius, lon float64, lat float64, radius float64, ga *geoArray) int {
+	neighbors := [9]HashBits{}
 	var count, last_processed int
 	debugmsg := 0
 
@@ -363,9 +363,9 @@ func membersOfAllNeighbors(zobj *utils.GKVDBObject, n GeoHashRadius, lon float64
 
 		/* Debugging info. */
 		if debugmsg > 0 {
-			var long_range, lat_range GeoHashRange
+			var long_range, lat_range HashRange
 			geohashGetCoordRange(&long_range, &lat_range)
-			myarea := new(GeoHashArea)
+			myarea := new(HashArea)
 			geohashDecode(long_range, lat_range, neighbors[i], myarea)
 
 			/* Dump center square. */
@@ -388,20 +388,20 @@ func membersOfAllNeighbors(zobj *utils.GKVDBObject, n GeoHashRadius, lon float64
 			}
 			continue
 		}
-		count += membersOfGeoHashBox(zobj, neighbors[i], ga, lon, lat, radius)
+		count += membersOfHashBox(zobj, neighbors[i], ga, lon, lat, radius)
 		last_processed = i
 	}
 	return count
 }
 
-func membersOfGeoHashBox(zobj *utils.GKVDBObject, hash GeoHashBits, ga *geoArray, lon float64, lat float64, radius float64) int {
-	var min, max GeoHashFix52Bits
+func membersOfHashBox(zobj *utils.GKVDBObject, hash HashBits, ga *geoArray, lon float64, lat float64, radius float64) int {
+	var min, max HashFix52Bits
 
-	scoresOfGeoHashBox(hash, &min, &max)
+	scoresOfHashBox(hash, &min, &max)
 	return geoGetPointsInRange(zobj, float64(min), float64(max), lon, lat, radius, ga)
 }
 
-func scoresOfGeoHashBox(hash GeoHashBits, min *GeoHashFix52Bits, max *GeoHashFix52Bits) {
+func scoresOfHashBox(hash HashBits, min *HashFix52Bits, max *HashFix52Bits) {
 	*min = geohashAlign52Bits(hash)
 	hash.bits++
 	*max = geohashAlign52Bits(hash)
@@ -439,7 +439,7 @@ func geoAppendIfWithinRadius(ga *geoArray, lon float64, lat float64, radius floa
 	var distance float64
 	xy := [2]float64{}
 
-	if !decodeGeohash(score, &xy) {
+	if !decodehash(score, &xy) {
 		return utils.C_ERR
 	}
 	if !geohashGetDistanceIfInRadiusWGS84(lon, lat, xy[0], xy[1], radius, &distance) {

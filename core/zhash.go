@@ -17,39 +17,39 @@ const EARTH_RADIUS_IN_METERS = 6372797.560856
 const MERCATOR_MAX = 20037726.37
 const MERCATOR_MIN = -20037726.37
 
-type GeoHashFix52Bits = uint64
-type GeoHashVarBits = uint64
+type HashFix52Bits = uint64
+type HashVarBits = uint64
 
-type GeoHashBits struct {
+type HashBits struct {
 	bits uint64
 	step uint8
 }
 
-type GeoHashRange struct {
+type HashRange struct {
 	min float64
 	max float64
 }
 
-type GeoHashArea struct {
-	hash      GeoHashBits
-	longitude GeoHashRange
-	latitude  GeoHashRange
+type HashArea struct {
+	hash      HashBits
+	longitude HashRange
+	latitude  HashRange
 }
 
-type GeoHashRadius struct {
-	hash      GeoHashBits
-	area      GeoHashArea
-	neighbors GeoHashNeighbors
+type HashRadius struct {
+	hash      HashBits
+	area      HashArea
+	neighbors HashNeighbors
 }
-type GeoHashNeighbors struct {
-	north      GeoHashBits
-	east       GeoHashBits
-	west       GeoHashBits
-	south      GeoHashBits
-	north_east GeoHashBits
-	south_east GeoHashBits
-	north_west GeoHashBits
-	south_west GeoHashBits
+type HashNeighbors struct {
+	north      HashBits
+	east       HashBits
+	west       HashBits
+	south      HashBits
+	north_east HashBits
+	south_east HashBits
+	north_west HashBits
+	south_west HashBits
 }
 
 type geoArray struct {
@@ -73,27 +73,27 @@ func rad_deg(ang float64) float64 {
 	return ang / D_R
 }
 
-func geohashEncodeWGS84(longitude float64, latitude float64, step uint8, hash *GeoHashBits) int {
+func geohashEncodeWGS84(longitude float64, latitude float64, step uint8, hash *HashBits) int {
 	return geohashEncodeType(longitude, latitude, step, hash)
 }
 
-func geohashEncodeType(longitude float64, latitude float64, step uint8, hash *GeoHashBits) int {
-	r := [2]GeoHashRange{}
+func geohashEncodeType(longitude float64, latitude float64, step uint8, hash *HashBits) int {
+	r := [2]HashRange{}
 	geohashGetCoordRange(&r[0], &r[1])
 	return geohashEncode(&r[0], &r[1], longitude, latitude, step, hash)
 }
 
 /* These are constraints from EPSG:900913 / EPSG:3785 / OSGEO:41001 */
 /* We can't geocode at the north/south pole. */
-func geohashGetCoordRange(long_range *GeoHashRange, lat_range *GeoHashRange) {
+func geohashGetCoordRange(long_range *HashRange, lat_range *HashRange) {
 	long_range.max = GEO_LONG_MAX
 	long_range.min = GEO_LONG_MIN
 	lat_range.max = GEO_LAT_MAX
 	lat_range.min = GEO_LAT_MIN
 }
 
-func geohashEncode(long_range *GeoHashRange, lat_range *GeoHashRange, longitude float64, latitude float64, step uint8,
-	hash *GeoHashBits) int {
+func geohashEncode(long_range *HashRange, lat_range *HashRange, longitude float64, latitude float64, step uint8,
+	hash *HashBits) int {
 	/* Check basic arguments sanity. */
 
 	/* Return an error when trying to index outside the supported
@@ -178,39 +178,39 @@ func deinterleave64(interleaved uint64) uint64 {
 	return x | (y << 32)
 }
 
-func geohashAlign52Bits(hash GeoHashBits) uint64 {
+func geohashAlign52Bits(hash HashBits) uint64 {
 	bits := hash.bits
 	bits <<= (52 - hash.step*2)
 	return bits
 }
 
-func decodeGeohash(bits float64, xy *[2]float64) bool {
-	hash := GeoHashBits{bits: uint64(bits), step: GEO_STEP_MAX}
+func decodehash(bits float64, xy *[2]float64) bool {
+	hash := HashBits{bits: uint64(bits), step: GEO_STEP_MAX}
 	return geohashDecodeToLongLatWGS84(hash, xy)
 }
-func geohashDecodeToLongLatWGS84(hash GeoHashBits, xy *[2]float64) bool {
+func geohashDecodeToLongLatWGS84(hash HashBits, xy *[2]float64) bool {
 	return geohashDecodeToLongLatType(hash, xy)
 }
 
-func geohashDecodeToLongLatType(hash GeoHashBits, xy *[2]float64) bool {
-	area := new(GeoHashArea)
+func geohashDecodeToLongLatType(hash HashBits, xy *[2]float64) bool {
+	area := new(HashArea)
 	if xy == nil || !geohashDecodeType(hash, area) {
 		return false
 	}
 	return geohashDecodeAreaToLongLat(area, xy)
 }
 
-func geohashDecodeType(hash GeoHashBits, area *GeoHashArea) bool {
-	r := [2]GeoHashRange{}
+func geohashDecodeType(hash HashBits, area *HashArea) bool {
+	r := [2]HashRange{}
 	geohashGetCoordRange(&r[0], &r[1])
 	return geohashDecode(r[0], r[1], hash, area)
 }
 
-func geohashDecodeWGS84(hash GeoHashBits, area *GeoHashArea) bool {
+func geohashDecodeWGS84(hash HashBits, area *HashArea) bool {
 	return geohashDecodeType(hash, area)
 }
 
-func geohashDecodeAreaToLongLat(area *GeoHashArea, xy *[2]float64) bool {
+func geohashDecodeAreaToLongLat(area *HashArea, xy *[2]float64) bool {
 	if xy == nil {
 		return false
 	}
@@ -220,15 +220,15 @@ func geohashDecodeAreaToLongLat(area *GeoHashArea, xy *[2]float64) bool {
 
 }
 
-func hashIsZero(hash GeoHashBits) bool {
+func hashIsZero(hash HashBits) bool {
 	return hash.bits == 0 && hash.step == 0
 }
 
-func rangeIsZero(r GeoHashRange) bool {
+func rangeIsZero(r HashRange) bool {
 	return r.max == 0 && r.min == 0
 }
 
-func geohashDecode(long_range GeoHashRange, lat_range GeoHashRange, hash GeoHashBits, area *GeoHashArea) bool {
+func geohashDecode(long_range HashRange, lat_range HashRange, hash HashBits, area *HashArea) bool {
 	if hashIsZero(hash) || area == nil || rangeIsZero(lat_range) || rangeIsZero(long_range) {
 		return false
 	}
@@ -263,16 +263,16 @@ func geohashGetDistance(lon1d float64, lat1d float64, lon2d float64, lat2d float
 		math.Asin(math.Sqrt(u*u+math.Cos(lat1r)*math.Cos(lat2r)*v*v))
 }
 
-func geohashGetAreasByRadiusWGS84(longitude float64, latitude float64, radius_meters float64) GeoHashRadius {
+func geohashGetAreasByRadiusWGS84(longitude float64, latitude float64, radius_meters float64) HashRadius {
 	return geohashGetAreasByRadius(longitude, latitude, radius_meters)
 }
 
-func geohashGetAreasByRadius(longitude float64, latitude float64, radius_meters float64) GeoHashRadius {
-	var long_range, lat_range GeoHashRange
-	var radius GeoHashRadius
-	var hash GeoHashBits
-	var neighbors GeoHashNeighbors
-	var area GeoHashArea
+func geohashGetAreasByRadius(longitude float64, latitude float64, radius_meters float64) HashRadius {
+	var long_range, lat_range HashRange
+	var radius HashRadius
+	var hash HashBits
+	var neighbors HashNeighbors
+	var area HashArea
 	var min_lon, max_lon, min_lat, max_lat float64
 	var bounds [4]float64
 	var steps int
@@ -292,7 +292,7 @@ func geohashGetAreasByRadius(longitude float64, latitude float64, radius_meters 
 
 	decrease_step := 0
 	{
-		var north, south, east, west GeoHashArea
+		var north, south, east, west HashArea
 
 		geohashDecode(long_range, lat_range, neighbors.north, &north)
 		geohashDecode(long_range, lat_range, neighbors.south, &south)
@@ -346,7 +346,7 @@ func geohashGetAreasByRadius(longitude float64, latitude float64, radius_meters 
 	radius.area = area
 	return radius
 }
-func GZERO(s *GeoHashBits) {
+func GZERO(s *HashBits) {
 	s.bits = 0
 	s.step = 0
 }
@@ -393,7 +393,7 @@ func geohashEstimateStepsByRadius(range_meters float64, lat float64) uint8 {
 }
 
 //计算其余8个框的geohash
-func geohashNeighbors(hash *GeoHashBits, neighbors *GeoHashNeighbors) {
+func geohashNeighbors(hash *HashBits, neighbors *HashNeighbors) {
 	neighbors.east = *hash
 	neighbors.west = *hash
 	neighbors.north = *hash
@@ -403,32 +403,32 @@ func geohashNeighbors(hash *GeoHashBits, neighbors *GeoHashNeighbors) {
 	neighbors.north_east = *hash
 	neighbors.north_west = *hash //8个方位的hash赋值
 
-	Geohash_move_x(&neighbors.east, 1)
-	Geohash_move_y(&neighbors.east, 0)
+	hash_move_x(&neighbors.east, 1)
+	hash_move_y(&neighbors.east, 0)
 
-	Geohash_move_x(&neighbors.west, -1)
-	Geohash_move_y(&neighbors.west, 0)
+	hash_move_x(&neighbors.west, -1)
+	hash_move_y(&neighbors.west, 0)
 
-	Geohash_move_x(&neighbors.south, 0)
-	Geohash_move_y(&neighbors.south, -1)
+	hash_move_x(&neighbors.south, 0)
+	hash_move_y(&neighbors.south, -1)
 
-	Geohash_move_x(&neighbors.north, 0)
-	Geohash_move_y(&neighbors.north, 1)
+	hash_move_x(&neighbors.north, 0)
+	hash_move_y(&neighbors.north, 1)
 
-	Geohash_move_x(&neighbors.north_west, -1)
-	Geohash_move_y(&neighbors.north_west, 1)
+	hash_move_x(&neighbors.north_west, -1)
+	hash_move_y(&neighbors.north_west, 1)
 
-	Geohash_move_x(&neighbors.north_east, 1)
-	Geohash_move_y(&neighbors.north_east, 1)
+	hash_move_x(&neighbors.north_east, 1)
+	hash_move_y(&neighbors.north_east, 1)
 
-	Geohash_move_x(&neighbors.south_east, 1)
-	Geohash_move_y(&neighbors.south_east, -1)
+	hash_move_x(&neighbors.south_east, 1)
+	hash_move_y(&neighbors.south_east, -1)
 
-	Geohash_move_x(&neighbors.south_west, -1)
-	Geohash_move_y(&neighbors.south_west, -1)
+	hash_move_x(&neighbors.south_west, -1)
+	hash_move_y(&neighbors.south_west, -1)
 }
 
-func Geohash_move_x(hash *GeoHashBits, d int8) {
+func hash_move_x(hash *HashBits, d int8) {
 	if d == 0 {
 		return
 	}
@@ -447,7 +447,7 @@ func Geohash_move_x(hash *GeoHashBits, d int8) {
 	hash.bits = (x | y)
 }
 
-func Geohash_move_y(hash *GeoHashBits, d int8) {
+func hash_move_y(hash *HashBits, d int8) {
 	if d == 0 {
 		return
 	}

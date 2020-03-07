@@ -106,12 +106,12 @@ func initServer() {
 	setCommand := &core.GkvDBCommand{Name: "set", Proc: core.SetCommand}
 	subscribeCommand := &core.GkvDBCommand{Name: "subscribe", Proc: core.SubscribeCommand}
 	publishCommand := &core.GkvDBCommand{Name: "publish", Proc: core.PublishCommand}
-	addCommand := &core.GkvDBCommand{Name: "add", Proc: core.GeoAddCommand}
-	hashCommand := &core.GkvDBCommand{Name: "hash", Proc: core.GeoHashCommand}
-	posCommand := &core.GkvDBCommand{Name: "pos", Proc: core.GeoPosCommand}
-	distCommand := &core.GkvDBCommand{Name: "dist", Proc: core.GeoDistCommand}
-	radiusCommand := &core.GkvDBCommand{Name: "radius", Proc: core.GeoRadiusCommand}
-	radiusbymemberCommand := &core.GkvDBCommand{Name: "radiusbymember", Proc: core.GeoRadiusByMemberCommand}
+	addCommand := &core.GkvDBCommand{Name: "add", Proc: core.AddCommand}
+	hashCommand := &core.GkvDBCommand{Name: "hash", Proc: core.HashCommand}
+	posCommand := &core.GkvDBCommand{Name: "pos", Proc: core.PosCommand}
+	distCommand := &core.GkvDBCommand{Name: "dist", Proc: core.DistCommand}
+	radiusCommand := &core.GkvDBCommand{Name: "radius", Proc: core.RadiusCommand}
+	radiusbymemberCommand := &core.GkvDBCommand{Name: "radiusbymember", Proc: core.RadiusByMemberCommand}
 
 	gkvdb.Commands = map[string]*core.GkvDBCommand{
 		"get":               getCommand,
