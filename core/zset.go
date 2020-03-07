@@ -1,23 +1,24 @@
 package core
 
 import (
-"math/rand"
+	"gReKVdisDB/utils"
+	"math/rand"
 )
 
-/* Input flags. */
+
 const ZADD_NONE = 0
-const ZADD_INCR = (1 << 0) /* Increment the score instead of setting it. */
-const ZADD_NX = (1 << 1)   /* Don't touch elements not already existing. */
+const ZADD_INCR = (1 << 0) 
+const ZADD_NX = (1 << 1)   
 const ZADD_XX = (1 << 2)
 
-/* Output flags. */
-const ZADD_NOP = (1 << 3)     /* Operation not performed because of conditionals.*/
-const ZADD_NAN = (1 << 4)     /* Only touch elements already exisitng. */
-const ZADD_ADDED = (1 << 5)   /* The element was new and was added. */
-const ZADD_UPDATED = (1 << 6) /* The element already existed, score updated. */
+
+const ZADD_NOP = (1 << 3)     
+const ZADD_NAN = (1 << 4)     
+const ZADD_ADDED = (1 << 5)   
+const ZADD_UPDATED = (1 << 6) 
 
 const ZSKIPLIST_MAXLEVEL = 32
-const ZSKIPLIST_P = 0.25 /* Skiplist P = 1/4 */
+const ZSKIPLIST_P = 0.25 
 
 type zSet struct {
 	dict *dict
@@ -27,14 +28,14 @@ type zSet struct {
 type zSkipList struct {
 	header *zSkipListNode
 	tail   *zSkipListNode
-	length uint //节点层的数量
-	level  int  //表示目前跳跃表内，层数最大的节点的层数
+	length uint 
+	level  int  
 }
 
-type zSkipListNode struct { //一层的节点
+type zSkipListNode struct { 
 	ele      string
-	score    float64        //
-	backward *zSkipListNode // 后退指针
+	score    float64        
+	backward *zSkipListNode 
 	level    []zSkipListLevel
 }
 
@@ -43,7 +44,7 @@ type zSkipListLevel struct {
 	span    uint
 }
 
-// ex结尾指示开区间还是闭区间 值为 1 表示开，值为 0 表示闭
+
 type zRangeSpec struct {
 	min   float64
 	max   float64
@@ -72,12 +73,12 @@ func zaddGenericCommand(c *Client, flags int) {
 		}
 	}
 
-	//这里首先在client对应的db中查找该key，即有序集
+	
 	zobj := lookupKey(c.Db, key)
 	if zobj == nil {
-		//hash+skiplist组合方式,后续再进行判断实现ziplist
+		
 		zobj = createZsetObject()
-		//添加到c.db中
+		
 		c.Db.Dict[key.Ptr.(string)] = zobj
 	}
 
@@ -93,19 +94,19 @@ func zaddGenericCommand(c *Client, flags int) {
 
 }
 
-// create zset
-func createZsetObject() *GodisObject {
+
+func createZsetObject() *utils.GKVDBObject {
 	val := new(zSet)
 	val.dict = new(dict)
-	dict := make(map[string]*GodisObject)
+	dict := make(map[string]*utils.GKVDBObject)
 	*val.dict = dict
 
-	val.zsl = zslCreate() //这里创建节点
-	o := CreateObject(OBJ_ZSET, val)
+	val.zsl = zslCreate() 
+	o := utils.CreateObject(utils.OBJ_ZSET, val)
 	return o
 }
 
-/* Create a new skiplist. */
+
 func zslCreate() *zSkipList {
 	zsl := new(zSkipList)
 	zsl.level = 1
@@ -120,17 +121,17 @@ func zslCreate() *zSkipList {
 	return zsl
 }
 
-// 参数依次是有序集，要添加的元素的score，要添加的元素，操作模式，新的score
-func zSetAdd(zObj *GodisObject, score float64, ele string, flags *int, newScore *float64) bool {
+
+func zSetAdd(zObj *utils.GKVDBObject, score float64, ele string, flags *int, newScore *float64) bool {
 	incr := (*flags & ZADD_INCR) != 0
 	nx := (*flags & ZADD_NX) != 0
 	xx := (*flags & ZADD_XX) != 0
 	*flags = 0
 	var curscore float64
-	//暂只支持skiplist
-	if zObj.ObjectType == OBJ_ZSET {
-		//进行hash查找
-		zs := zObj.Ptr.(*zSet) //使用*zSet好，还是zSet好
+	
+	if zObj.ObjectType == utils.OBJ_ZSET {
+		
+		zs := zObj.Ptr.(*zSet) 
 
 		dict := zs.dict
 		de := dictFind(dict, ele)
@@ -141,33 +142,33 @@ func zSetAdd(zObj *GodisObject, score float64, ele string, flags *int, newScore 
 			if incr {
 
 			}
-			//获取存储的score
+			
 			if coreTemp, ok := de.Ptr.(float64); ok {
 				curscore = coreTemp
 			} else {
-				//exit
+				
 			}
 
-			//remove and in-insert when score changes
+			
 			if curscore != score {
 
 			}
 
 		} else if !xx {
-			//insert
+			
 			zslInsert(zs.zsl, score, ele)
-			//插入dict
-			(*(zs.dict))[ele] = CreateObject(ObjectTypeString, score)
+			
+			(*(zs.dict))[ele] = utils.CreateObject(utils.ObjectTypeString, score)
 			*flags |= ZADD_ADDED
 			return true
 		}
 	} else {
-		//exit;
+		
 	}
-	return false /* Never reached. */
+	return false 
 }
 
-func dictFind(d *dict, key string) *GodisObject {
+func dictFind(d *dict, key string) *utils.GKVDBObject {
 	if (*d)[key] != nil {
 		return (*d)[key]
 	}
@@ -182,7 +183,7 @@ func dictFind(d *dict, key string) *GodisObject {
  *
  * T_wrost = O(N^2), T_avg = O(N log N)
  */
-/*src/t_zset.c/zslInsert*/
+
 func zslInsert(zsl *zSkipList, score float64, ele string) *zSkipListNode {
 	update := make([]*zSkipListNode, ZSKIPLIST_MAXLEVEL)
 	rank := make([]uint, ZSKIPLIST_MAXLEVEL)
@@ -240,7 +241,7 @@ func zslInsert(zsl *zSkipList, score float64, ele string) *zSkipListNode {
 	return x
 }
 
-// 获取一个随机值作为新节点的层数
+
 func zslRandomLevel() int {
 	level := 1
 	for rand.Float64()*65535 < ZSKIPLIST_P*65535 {
@@ -253,7 +254,7 @@ func zslRandomLevel() int {
 	return ZSKIPLIST_MAXLEVEL
 }
 
-// 创建新节点zSkipListNode
+
 func zslCreateNode(level int, score float64, ele string) *zSkipListNode {
 	zn := new(zSkipListNode)
 	zl := make([]zSkipListLevel, level)
@@ -300,7 +301,7 @@ func zslValueLteMax(value float64, spec *zRangeSpec) bool {
 }
 
 func zslIsInRange(zsl *zSkipList, zRange *zRangeSpec) bool {
-	//test invalid param
+	
 	if zRange.min > zRange.max ||
 		(zRange.min == zRange.max && (zRange.minEx != 0 || zRange.maxEx != 0)) {
 		return false
@@ -316,7 +317,7 @@ func zslIsInRange(zsl *zSkipList, zRange *zRangeSpec) bool {
 	return true
 }
 
-//从skiplist删除一个节点
+
 func zslDelete(zsl *zSkipList, score float64, ele string, node **zSkipListNode) bool {
 	update := make([]*zSkipListNode, ZSKIPLIST_MAXLEVEL)
 	rank := make([]uint, ZSKIPLIST_MAXLEVEL)
@@ -365,23 +366,23 @@ func zslDeleteNode(zsl *zSkipList, x *zSkipListNode, update []*zSkipListNode) {
 	zsl.length--
 }
 
-func zsetScore(zobj *GodisObject, member string, score *float64) int {
+func zsetScore(zobj *utils.GKVDBObject, member string, score *float64) int {
 	if zobj == nil || member == "" {
-		return C_ERR
+		return utils.C_ERR
 	}
-	// only search skiplist
-	if zobj.ObjectType == OBJ_ZSET {
+	
+	if zobj.ObjectType == utils.OBJ_ZSET {
 		zs := zobj.Ptr.(*zSet)
 		dict := zs.dict
 		de := dictFind(dict, member)
 
 		if de == nil {
-			return C_ERR
+			return utils.C_ERR
 		}
 		value := de.Ptr.(float64)
 		*score = value
 	} else {
 		panic("Unknown sorted set encoding")
 	}
-	return C_OK
+	return utils.C_OK
 }
