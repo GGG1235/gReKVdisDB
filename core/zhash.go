@@ -52,20 +52,6 @@ type HashNeighbors struct {
 	south_west HashBits
 }
 
-type Array struct {
-	array   []*Point
-	buckets uint
-	used    uint
-}
-
-type Point struct {
-	longitude float64
-	latitude  float64
-	dist      float64
-	score     float64
-	member    string
-}
-
 func deg_rad(ang float64) float64 {
 	return ang * D_R
 }
@@ -94,10 +80,6 @@ func hashGetCoordRange(long_range *HashRange, lat_range *HashRange) {
 
 func hashEncode(long_range *HashRange, lat_range *HashRange, longitude float64, latitude float64, step uint8,
 	hash *HashBits) int {
-	/* Check basic arguments sanity. */
-
-	/* Return an error when trying to index outside the supported
-	 * constraints. */
 	if longitude > 180 || longitude < -180 ||
 		latitude > 85.05112878 || latitude < -85.05112878 {
 		return 0
@@ -126,9 +108,6 @@ func hashEncode(long_range *HashRange, lat_range *HashRange, longitude float64, 
 	return 1
 }
 
-/*
-lat 放在偶数位，lng放在奇数位
-*/
 func interleave64(latOffset int32, lngOffset int32) uint64 {
 	B := []uint64{0x5555555555555555, 0x3333333333333333,
 		0x0F0F0F0F0F0F0F0F, 0x00FF00FF00FF00FF,

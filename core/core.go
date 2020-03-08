@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"gReKVdisDB/date_structure"
 	"gReKVdisDB/date_structure/skiplist"
 	"gReKVdisDB/utils"
 	"os"
@@ -268,15 +269,15 @@ func radiusGeneric(c *Client, flags uint) {
 	radius := hashGetAreasByRadiusWGS84(xy[0], xy[1], radius_meters)
 
 	/* Search the set for all matching points */
-	ga := ArrayCreate() 
+	ga := date_structure.ArrayCreate()
 	membersOfAllNeighbors(obj, radius, xy[0], xy[1], radius_meters, ga)
 
-	if ga.used == 0 && storekey == nil {
+	if ga.Used == 0 && storekey == nil {
 		addReplyError(c, "emptymultibulk")
 		return
 	}
 
-	result_length := ga.used
+	result_length := ga.Used
 	var returned_items int
 	if count == 0 || int64(result_length) < count {
 		returned_items = int(result_length)
@@ -302,12 +303,11 @@ func radiusGeneric(c *Client, flags uint) {
 			option_length++
 		}
 
-		/* Finally send results back to the caller */
 		for i := 0; i < returned_items; i++ {
-			gp := ga.array[i]
-			gp.dist /= conversion
+			gp := ga.Arr[i]
+			gp.Dist /= conversion
 			fmt.Println(gp)
-			addReplyStatus(c, gp.member)
+			addReplyStatus(c, gp.Member)
 		}
 
 	} else {
@@ -315,15 +315,6 @@ func radiusGeneric(c *Client, flags uint) {
 	}
 
 }
-
-func ArrayCreate() *Array {
-	ga := new(Array)
-	ga.array = make([]*Point, 0)
-	ga.buckets = 0
-	ga.used = 0
-	return ga
-}
-
 
 func extractUnitOrReply(c *Client, uint utils.GKVDBObject) float64 {
 	u := uint.Ptr.(string)
@@ -342,7 +333,7 @@ func extractUnitOrReply(c *Client, uint utils.GKVDBObject) float64 {
 	}
 }
 
-func membersOfAllNeighbors(obj *utils.GKVDBObject, n HashRadius, lon float64, lat float64, radius float64, ga *Array) int {
+func membersOfAllNeighbors(obj *utils.GKVDBObject, n HashRadius, lon float64, lat float64, radius float64, ga *date_structure.Array) int {
 	neighbors := [9]HashBits{}
 	var count, last_processed int
 	debugmsg := 0
@@ -377,10 +368,6 @@ func membersOfAllNeighbors(obj *utils.GKVDBObject, n HashRadius, lon float64, la
 			fmt.Println("area.latitude.max: %f\n", myarea.latitude.max)
 		}
 
-		/* When a huge Radius (in the 5000 km range or more) is used,
-		 * adjacent neighbors can be the same, leading to duplicated
-		 * elements. Skip every range which is the same as the one
-		 * processed previously. */
 		if last_processed > 0 &&
 			neighbors[i].bits == neighbors[last_processed].bits &&
 			neighbors[i].step == neighbors[last_processed].step {
@@ -395,7 +382,7 @@ func membersOfAllNeighbors(obj *utils.GKVDBObject, n HashRadius, lon float64, la
 	return count
 }
 
-func membersOfHashBox(obj *utils.GKVDBObject, hash HashBits, ga *Array, lon float64, lat float64, radius float64) int {
+func membersOfHashBox(obj *utils.GKVDBObject, hash HashBits, ga *date_structure.Array, lon float64, lat float64, radius float64) int {
 	var min, max HashFix52Bits
 
 	scoresOfHashBox(hash, &min, &max)
@@ -408,9 +395,9 @@ func scoresOfHashBox(hash HashBits, min *HashFix52Bits, max *HashFix52Bits) {
 	*max = hashAlign52Bits(hash)
 }
 
-func GetPointsInRange(obj *utils.GKVDBObject, min float64, max float64, lon float64, lat float64, radius float64, ga *Array) int {
+func GetPointsInRange(obj *utils.GKVDBObject, min float64, max float64, lon float64, lat float64, radius float64, ga *date_structure.Array) int {
 	r := RangeSpec{Min: min, Max: max, MinEx: 0, MaxEx: 1}
-	var origincount uint = ga.used
+	var origincount uint = ga.Used
 	
 	if obj.ObjectType == utils.OBJ_ZSET {
 		s := obj.Ptr.(*Set)
@@ -433,10 +420,10 @@ func GetPointsInRange(obj *utils.GKVDBObject, min float64, max float64, lon floa
 	} else {
 		
 	}
-	return int(ga.used - origincount)
+	return int(ga.Used - origincount)
 }
 
-func AppendIfWithinRadius(ga *Array, lon float64, lat float64, radius float64, score float64, member string) int {
+func AppendIfWithinRadius(ga *date_structure.Array, lon float64, lat float64, radius float64, score float64, member string) int {
 	var distance float64
 	xy := [2]float64{}
 
@@ -447,25 +434,11 @@ func AppendIfWithinRadius(ga *Array, lon float64, lat float64, radius float64, s
 		return utils.C_ERR
 	}
 
-	gp := ArrayAppend(ga)
-	gp.longitude = xy[0]
-	gp.latitude = xy[1]
-	gp.dist = distance
-	gp.member = member
-	gp.score = score
+	gp := date_structure.ArrayAppend(ga)
+	gp.Longitude = xy[0]
+	gp.Latitude = xy[1]
+	gp.Dist = distance
+	gp.Member = member
+	gp.Score = score
 	return utils.C_OK
-}
-
-func ArrayAppend(ga *Array) *Point {
-	if ga.used == ga.buckets {
-		if ga.buckets == 0 {
-			ga.buckets = 8
-		} else {
-			ga.buckets = ga.buckets * 2
-		}
-	}
-	gp := new(Point)
-	ga.array = append(ga.array, gp)
-	ga.used++
-	return gp
 }
