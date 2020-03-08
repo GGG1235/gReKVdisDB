@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"gReKVdisDB/date_structure/skiplist"
 	"gReKVdisDB/utils"
 	"os"
 	"strconv"
@@ -27,7 +28,7 @@ func AddCommand(c *Client, s *Server) {
 	elements := (c.Argc - 2) / 3 
 	argc := 2 + elements*2 
 	argv := make([]*utils.GKVDBObject, argc)
-	argv[0] = utils.CreateObject(utils.ObjectTypeString, "zadd")
+	argv[0] = utils.CreateObject(utils.ObjectTypeString, "add")
 	argv[1] = c.Argv[1]
 
 	for i := 0; i < elements; i++ {
@@ -45,7 +46,7 @@ func AddCommand(c *Client, s *Server) {
 				}
 			}
 		}
-		hashEncodeWGS84(xy[0], xy[1], GEO_STEP_MAX, &hash)
+		hashEncodeWGS84(xy[0], xy[1], STEP_MAX, &hash)
 		bits := hashAlign52Bits(hash)
 		score := utils.CreateObject(utils.ObjectTypeString, bits)
 
@@ -55,22 +56,22 @@ func AddCommand(c *Client, s *Server) {
 	}
 	c.Argc = argc
 	c.Argv = argv
-	zaddCommand(c)
+	addCommand(c)
 
 	addReplyStatus(c, "OK")
 }
 
 
 func HashCommand(c *Client, s *Server) {
-	Alphabet := "0123456789bcdefghjkmnpqrstuvwxyz"
-	zobj := lookupKey(c.Db, c.Argv[1])
-	if zobj != nil && zobj.ObjectType != utils.OBJ_ZSET {
+	Alphabet := "0123456789bcdefghjkmnpqrstuvwxy"
+	obj := LookupKey(c.Db, c.Argv[1])
+	if obj != nil && obj.ObjectType != utils.OBJ_ZSET {
 		return
 	}
 	buf := ""
 	for j := 2; j < c.Argc; j++ {
 		var score float64
-		if zobj == nil || zsetScore(zobj, c.Argv[j].Ptr.(string), &score) == utils.C_ERR {
+		if obj == nil || SetScore(obj, c.Argv[j].Ptr.(string), &score) == utils.C_ERR {
 			addReplyError(c, "score get error ")
 			return
 		}
@@ -101,15 +102,15 @@ func HashCommand(c *Client, s *Server) {
 
 
 func PosCommand(c *Client, s *Server) {
-	zobj := lookupKey(c.Db, c.Argv[1])
-	if zobj != nil && zobj.ObjectType != utils.OBJ_ZSET {
+	obj := LookupKey(c.Db, c.Argv[1])
+	if obj != nil && obj.ObjectType != utils.OBJ_ZSET {
 		return
 	}
 	buf := "lng:"
 
 	for j := 2; j < c.Argc; j++ {
 		var score float64
-		if zobj == nil || zsetScore(zobj, c.Argv[j].Ptr.(string), &score) == utils.C_ERR {
+		if obj == nil || SetScore(obj, c.Argv[j].Ptr.(string), &score) == utils.C_ERR {
 			addReplyError(c, "score get error ")
 			return
 		}
@@ -133,15 +134,15 @@ func DistCommand(c *Client, s *Server) {
 		addReplyError(c, "params error")
 		return
 	}
-	zobj := lookupKey(c.Db, c.Argv[1])
-	if zobj != nil && zobj.ObjectType != utils.OBJ_ZSET {
+	obj := LookupKey(c.Db, c.Argv[1])
+	if obj != nil && obj.ObjectType != utils.OBJ_ZSET {
 		return
 	}
 
 	var score1, score2 float64
 	var xyxy1, xyxy2 [2]float64
-	if zsetScore(zobj, c.Argv[2].Ptr.(string), &score1) == utils.C_ERR ||
-		zsetScore(zobj, c.Argv[3].Ptr.(string), &score2) == utils.C_ERR {
+	if SetScore(obj, c.Argv[2].Ptr.(string), &score1) == utils.C_ERR ||
+		SetScore(obj, c.Argv[3].Ptr.(string), &score2) == utils.C_ERR {
 		addReplyError(c, "score get error ")
 		return
 	}
@@ -169,8 +170,8 @@ func radiusGeneric(c *Client, flags uint) {
 	storedist := 0
 
 	
-	zobj := lookupKey(c.Db, c.Argv[1])
-	if zobj != nil && zobj.ObjectType != utils.OBJ_ZSET {
+	obj := LookupKey(c.Db, c.Argv[1])
+	if obj != nil && obj.ObjectType != utils.OBJ_ZSET {
 		return
 	}
 
@@ -266,9 +267,9 @@ func radiusGeneric(c *Client, flags uint) {
 	
 	radius := hashGetAreasByRadiusWGS84(xy[0], xy[1], radius_meters)
 
-	/* Search the zset for all matching points */
+	/* Search the set for all matching points */
 	ga := ArrayCreate() 
-	membersOfAllNeighbors(zobj, radius, xy[0], xy[1], radius_meters, ga)
+	membersOfAllNeighbors(obj, radius, xy[0], xy[1], radius_meters, ga)
 
 	if ga.used == 0 && storekey == nil {
 		addReplyError(c, "emptymultibulk")
@@ -341,7 +342,7 @@ func extractUnitOrReply(c *Client, uint utils.GKVDBObject) float64 {
 	}
 }
 
-func membersOfAllNeighbors(zobj *utils.GKVDBObject, n HashRadius, lon float64, lat float64, radius float64, ga *Array) int {
+func membersOfAllNeighbors(obj *utils.GKVDBObject, n HashRadius, lon float64, lat float64, radius float64, ga *Array) int {
 	neighbors := [9]HashBits{}
 	var count, last_processed int
 	debugmsg := 0
@@ -388,17 +389,17 @@ func membersOfAllNeighbors(zobj *utils.GKVDBObject, n HashRadius, lon float64, l
 			}
 			continue
 		}
-		count += membersOfHashBox(zobj, neighbors[i], ga, lon, lat, radius)
+		count += membersOfHashBox(obj, neighbors[i], ga, lon, lat, radius)
 		last_processed = i
 	}
 	return count
 }
 
-func membersOfHashBox(zobj *utils.GKVDBObject, hash HashBits, ga *Array, lon float64, lat float64, radius float64) int {
+func membersOfHashBox(obj *utils.GKVDBObject, hash HashBits, ga *Array, lon float64, lat float64, radius float64) int {
 	var min, max HashFix52Bits
 
 	scoresOfHashBox(hash, &min, &max)
-	return GetPointsInRange(zobj, float64(min), float64(max), lon, lat, radius, ga)
+	return GetPointsInRange(obj, float64(min), float64(max), lon, lat, radius, ga)
 }
 
 func scoresOfHashBox(hash HashBits, min *HashFix52Bits, max *HashFix52Bits) {
@@ -407,27 +408,27 @@ func scoresOfHashBox(hash HashBits, min *HashFix52Bits, max *HashFix52Bits) {
 	*max = hashAlign52Bits(hash)
 }
 
-func GetPointsInRange(zobj *utils.GKVDBObject, min float64, max float64, lon float64, lat float64, radius float64, ga *Array) int {
-	zrange := zRangeSpec{min: min, max: max, minEx: 0, maxEx: 1}
+func GetPointsInRange(obj *utils.GKVDBObject, min float64, max float64, lon float64, lat float64, radius float64, ga *Array) int {
+	r := RangeSpec{Min: min, Max: max, MinEx: 0, MaxEx: 1}
 	var origincount uint = ga.used
 	
-	if zobj.ObjectType == utils.OBJ_ZSET {
-		zs := zobj.Ptr.(*zSet) 
-		zsl := zs.zsl
-		var ln *zSkipListNode
+	if obj.ObjectType == utils.OBJ_ZSET {
+		s := obj.Ptr.(*Set)
+		sl := s.Sl
+		var ln *skiplist.Node
 
-		ln = zslFirstInRange(zsl, &zrange)
+		ln = SkipListFirstInRange(sl, &r)
 		if ln == nil {
 			return 0
 		}
 
 		for ln != nil {
-			ele := ln.ele
-			if !zslValueLteMax(ln.score, &zrange) {
+			ele := ln.Ele
+			if !SkipListValueLteMax(ln.Score, &r) {
 				break
 			}
-			AppendIfWithinRadius(ga, lon, lat, radius, ln.score, ele)
-			ln = ln.level[0].forward
+			AppendIfWithinRadius(ga, lon, lat, radius, ln.Score, ele)
+			ln = ln.Level[0].Forward
 		}
 	} else {
 		

@@ -1,66 +1,47 @@
 package core
 
 import (
+	"gReKVdisDB/date_structure/skiplist"
 	"gReKVdisDB/utils"
 	"math/rand"
 )
 
 
-const ZADD_NONE = 0
-const ZADD_INCR = (1 << 0) 
-const ZADD_NX = (1 << 1)   
-const ZADD_XX = (1 << 2)
+const ADD_NONE = 0
+const ADD_INCR = (1 << 0) 
+const ADD_NX = (1 << 1)   
+const ADD_XX = (1 << 2)
 
 
-const ZADD_NOP = (1 << 3)     
-const ZADD_NAN = (1 << 4)     
-const ZADD_ADDED = (1 << 5)   
-const ZADD_UPDATED = (1 << 6) 
+const ADD_NOP = (1 << 3)     
+const ADD_NAN = (1 << 4)     
+const ADD_ADDED = (1 << 5)   
+const ADD_UPDATED = (1 << 6) 
 
-const ZSKIPLIST_MAXLEVEL = 32
-const ZSKIPLIST_P = 0.25 
+const SKIPLIST_MAXLEVEL = 32
+const SKIPLIST_P = 0.25 
 
-type zSet struct {
-	dict *dict
-	zsl  *zSkipList
+type Set struct {
+	dict *Dict
+	Sl  *skiplist.SkipList
 }
 
-type zSkipList struct {
-	header *zSkipListNode
-	tail   *zSkipListNode
-	length uint 
-	level  int  
+type RangeSpec struct {
+	Min   float64
+	Max   float64
+	MinEx int
+	MaxEx int
 }
 
-type zSkipListNode struct { 
-	ele      string
-	score    float64        
-	backward *zSkipListNode 
-	level    []zSkipListLevel
+func addCommand(c *Client) {
+	addGenericCommand(c, ADD_NONE)
 }
 
-type zSkipListLevel struct {
-	forward *zSkipListNode
-	span    uint
+func IncrbyCommand(c *Client) {
+	addGenericCommand(c, ADD_INCR)
 }
 
-
-type zRangeSpec struct {
-	min   float64
-	max   float64
-	minEx int
-	maxEx int
-}
-
-func zaddCommand(c *Client) {
-	zaddGenericCommand(c, ZADD_NONE)
-}
-
-func zincrbyCommand(c *Client) {
-	zaddGenericCommand(c, ZADD_INCR)
-}
-
-func zaddGenericCommand(c *Client, flags int) {
+func addGenericCommand(c *Client, flags int) {
 	key := c.Argv[1]
 	scoreIdx := 2
 	elements := c.Argc - scoreIdx
@@ -73,21 +54,21 @@ func zaddGenericCommand(c *Client, flags int) {
 		}
 	}
 
-	
-	zobj := lookupKey(c.Db, key)
-	if zobj == nil {
-		
-		zobj = createZsetObject()
-		
-		c.Db.Dict[key.Ptr.(string)] = zobj
+
+	obj := LookupKey(c.Db, key)
+	if obj == nil {
+
+		obj = createSetObject()
+
+		c.Db.Dict[key.Ptr.(string)] = obj
 	}
 
 	for j := 0; j < elements; j++ {
 		var newScore float64
-		score := scores[j]
+		Score := scores[j]
 		retFlags := flags
 		if ele, ok := c.Argv[scoreIdx+1+j*2].Ptr.(string); ok {
-			zSetAdd(zobj, score, ele, &retFlags, &newScore)
+			SetAdd(obj, Score, ele, &retFlags, &newScore)
 		}
 
 	}
@@ -95,46 +76,30 @@ func zaddGenericCommand(c *Client, flags int) {
 }
 
 
-func createZsetObject() *utils.GKVDBObject {
-	val := new(zSet)
-	val.dict = new(dict)
+func createSetObject() *utils.GKVDBObject {
+	val := new(Set)
+	val.dict = new(Dict)
 	dict := make(map[string]*utils.GKVDBObject)
 	*val.dict = dict
 
-	val.zsl = zslCreate() 
-	o := utils.CreateObject(utils.OBJ_ZSET, val)
+	val.Sl = skiplist.CreateSkipList()
+	o := utils.CreateObject(utils.OBJ_SET, val)
 	return o
 }
 
-
-func zslCreate() *zSkipList {
-	zsl := new(zSkipList)
-	zsl.level = 1
-	zsl.length = 0
-	zsl.header = zslCreateNode(ZSKIPLIST_MAXLEVEL, 0, "")
-	for j := 0; j < ZSKIPLIST_MAXLEVEL; j++ {
-		zsl.header.level[j].forward = nil
-		zsl.header.level[j].span = 0
-	}
-	zsl.header.backward = nil
-	zsl.tail = nil
-	return zsl
-}
-
-
-func zSetAdd(zObj *utils.GKVDBObject, score float64, ele string, flags *int, newScore *float64) bool {
-	incr := (*flags & ZADD_INCR) != 0
-	nx := (*flags & ZADD_NX) != 0
-	xx := (*flags & ZADD_XX) != 0
+func SetAdd(Obj *utils.GKVDBObject, Score float64, Ele string, flags *int, newScore *float64) bool {
+	incr := (*flags & ADD_INCR) != 0
+	nx := (*flags & ADD_NX) != 0
+	xx := (*flags & ADD_XX) != 0
 	*flags = 0
 	var curscore float64
-	
-	if zObj.ObjectType == utils.OBJ_ZSET {
-		
-		zs := zObj.Ptr.(*zSet) 
 
-		dict := zs.dict
-		de := dictFind(dict, ele)
+	if Obj.ObjectType == utils.OBJ_SET {
+
+		s := Obj.Ptr.(*Set)
+
+		dict := s.dict
+		de := dictFind(dict, Ele)
 		if de != nil {
 			if nx {
 
@@ -142,236 +107,226 @@ func zSetAdd(zObj *utils.GKVDBObject, score float64, ele string, flags *int, new
 			if incr {
 
 			}
-			
+
 			if coreTemp, ok := de.Ptr.(float64); ok {
 				curscore = coreTemp
 			} else {
-				
+
 			}
 
-			
-			if curscore != score {
+
+			if curscore != Score {
 
 			}
 
 		} else if !xx {
-			
-			zslInsert(zs.zsl, score, ele)
-			
-			(*(zs.dict))[ele] = utils.CreateObject(utils.ObjectTypeString, score)
-			*flags |= ZADD_ADDED
+
+			Insert(s.Sl, Score, Ele)
+
+			(*(s.dict))[Ele] = utils.CreateObject(utils.ObjectTypeString, Score)
+			*flags |= ADD_ADDED
 			return true
 		}
 	} else {
-		
+
 	}
-	return false 
+	return false
 }
 
-func dictFind(d *dict, key string) *utils.GKVDBObject {
+func dictFind(d *Dict, key string) *utils.GKVDBObject {
 	if (*d)[key] != nil {
 		return (*d)[key]
 	}
 	return nil
 }
 
-func zslInsert(zsl *zSkipList, score float64, ele string) *zSkipListNode {
-	update := make([]*zSkipListNode, ZSKIPLIST_MAXLEVEL)
-	rank := make([]uint, ZSKIPLIST_MAXLEVEL)
-	x := zsl.header
+func Insert(Sl *skiplist.SkipList, Score float64, Ele string) *skiplist.Node {
+	update := make([]*skiplist.Node, SKIPLIST_MAXLEVEL)
+	rank := make([]uint, SKIPLIST_MAXLEVEL)
+	x := Sl.Header
 
-	for i := zsl.level - 1; i >= 0; i-- {
-		if i == zsl.level-1 {
+	for i := Sl.Level - 1; i >= 0; i-- {
+		if i == Sl.Level-1 {
 			rank[i] = 0
 		} else {
 			rank[i] = rank[i+1]
 		}
 
-		for x.level[i].forward != nil && (x.level[i].forward.score < score ||
-			(x.level[i].forward.score == score && (x.level[i].forward.ele < ele))) {
-			rank[i] += x.level[i].span
-			x = x.level[i].forward
+		for x.Level[i].Forward != nil && (x.Level[i].Forward.Score < Score ||
+			(x.Level[i].Forward.Score == Score && (x.Level[i].Forward.Ele < Ele))) {
+			rank[i] += x.Level[i].Span
+			x = x.Level[i].Forward
 		}
 		update[i] = x
 	}
 
-	level := zslRandomLevel()
-	if level > zsl.level {
-		for i := zsl.level; i < level; i++ {
+	Level := RandomLevel()
+	if Level > Sl.Level {
+		for i := Sl.Level; i < Level; i++ {
 			rank[i] = 0
-			update[i] = zsl.header
-			update[i].level[i].span = zsl.length
+			update[i] = Sl.Header
+			update[i].Level[i].Span = Sl.Length
 		}
-		zsl.level = level
+		Sl.Level = Level
 	}
 
-	x = zslCreateNode(level, score, ele)
-	for i := 0; i < level; i++ {
-		x.level[i].forward = update[i].level[i].forward
-		update[i].level[i].forward = x
-		x.level[i].span = update[i].level[i].span - (rank[0] - rank[i])
-		update[i].level[i].span = (rank[0] - rank[i]) + 1
+	x = skiplist.CreateSkipListNode(Level, Score, Ele)
+	for i := 0; i < Level; i++ {
+		x.Level[i].Forward = update[i].Level[i].Forward
+		update[i].Level[i].Forward = x
+		x.Level[i].Span = update[i].Level[i].Span - (rank[0] - rank[i])
+		update[i].Level[i].Span = (rank[0] - rank[i]) + 1
 	}
 
-	for i := level; i < zsl.level; i++ {
-		update[i].level[i].span++
+	for i := Level; i < Sl.Level; i++ {
+		update[i].Level[i].Span++
 	}
 
-	if update[0] == zsl.header {
-		x.backward = nil
+	if update[0] == Sl.Header {
+		x.Backward = nil
 	} else {
-		x.backward = update[0]
+		x.Backward = update[0]
 	}
 
-	if x.level[0].forward != nil {
-		x.level[0].forward.backward = x
+	if x.Level[0].Forward != nil {
+		x.Level[0].Forward.Backward = x
 	} else {
-		zsl.tail = x
+		Sl.Tail = x
 	}
-	zsl.length++
+	Sl.Length++
 	return x
 }
 
 
-func zslRandomLevel() int {
-	level := 1
-	for rand.Float64()*65535 < ZSKIPLIST_P*65535 {
-		level++
+func RandomLevel() int {
+	Level := 1
+	for rand.Float64()*65535 < SKIPLIST_P*65535 {
+		Level++
 	}
 
-	if level < ZSKIPLIST_MAXLEVEL {
-		return level
+	if Level < SKIPLIST_MAXLEVEL {
+		return Level
 	}
-	return ZSKIPLIST_MAXLEVEL
+	return SKIPLIST_MAXLEVEL
 }
 
-
-func zslCreateNode(level int, score float64, ele string) *zSkipListNode {
-	zn := new(zSkipListNode)
-	zl := make([]zSkipListLevel, level)
-	zn.level = zl
-	zn.score = score
-	zn.ele = ele
-	return zn
-}
-
-func zslFirstInRange(zsl *zSkipList, zRange *zRangeSpec) *zSkipListNode {
-	if !zslIsInRange(zsl, zRange) {
+func SkipListFirstInRange(Sl *skiplist.SkipList, Range *RangeSpec) *skiplist.Node {
+	if !IsInRange(Sl, Range) {
 		return nil
 	}
-	x := zsl.header
-	for i := zsl.level - 1; i >= 0; i-- {
-		for x.level[i].forward != nil && !zslValueGteMin(x.level[i].forward.score, zRange) {
-			x = x.level[i].forward
+	x := Sl.Header
+	for i := Sl.Level - 1; i >= 0; i-- {
+		for x.Level[i].Forward != nil && !SkipListValueGteMin(x.Level[i].Forward.Score, Range) {
+			x = x.Level[i].Forward
 		}
 	}
 
-	x = x.level[0].forward
+	x = x.Level[0].Forward
 	if x == nil {
 		return nil
 	}
 
-	if !zslValueLteMax(x.score, zRange) {
+	if !SkipListValueLteMax(x.Score, Range) {
 		return nil
 	}
 	return x
 }
 
-func zslValueGteMin(value float64, spec *zRangeSpec) bool {
-	if spec.minEx != 0 {
-		return value > spec.min
+func SkipListValueGteMin(value float64, spec *RangeSpec) bool {
+	if spec.MinEx != 0 {
+		return value > spec.Min
 	}
-	return value >= spec.min
+	return value >= spec.Min
 }
 
-func zslValueLteMax(value float64, spec *zRangeSpec) bool {
-	if spec.maxEx != 0 {
-		return value < spec.max
+func SkipListValueLteMax(value float64, spec *RangeSpec) bool {
+	if spec.MaxEx != 0 {
+		return value < spec.Max
 	}
-	return value <= spec.max
+	return value <= spec.Max
 }
 
-func zslIsInRange(zsl *zSkipList, zRange *zRangeSpec) bool {
-	
-	if zRange.min > zRange.max ||
-		(zRange.min == zRange.max && (zRange.minEx != 0 || zRange.maxEx != 0)) {
+func IsInRange(Sl *skiplist.SkipList, Range *RangeSpec) bool {
+
+	if Range.Min > Range.Max ||
+		(Range.Min == Range.Max && (Range.MinEx != 0 || Range.MaxEx != 0)) {
 		return false
 	}
-	x := zsl.tail
-	if x == nil || !zslValueGteMin(x.score, zRange) {
+	x := Sl.Tail
+	if x == nil || !SkipListValueGteMin(x.Score, Range) {
 		return false
 	}
-	x = zsl.header.level[0].forward
-	if x == nil || !zslValueLteMax(x.score, zRange) {
+	x = Sl.Header.Level[0].Forward
+	if x == nil || !SkipListValueLteMax(x.Score, Range) {
 		return false
 	}
 	return true
 }
 
 
-func zslDelete(zsl *zSkipList, score float64, ele string, node **zSkipListNode) bool {
-	update := make([]*zSkipListNode, ZSKIPLIST_MAXLEVEL)
-	rank := make([]uint, ZSKIPLIST_MAXLEVEL)
-	x := zsl.header
-	for i := zsl.level - 1; i >= 0; i-- {
-		if i == zsl.level-1 {
+func Delete(Sl *skiplist.SkipList, Score float64, Ele string, node **skiplist.Node) bool {
+	update := make([]*skiplist.Node, SKIPLIST_MAXLEVEL)
+	rank := make([]uint, SKIPLIST_MAXLEVEL)
+	x := Sl.Header
+	for i := Sl.Level - 1; i >= 0; i-- {
+		if i == Sl.Level-1 {
 			rank[i] = 0
 		} else {
 			rank[i] = rank[i+1]
 		}
 
-		for x.level[i].forward != nil && (x.level[i].forward.score < score ||
-			(x.level[i].forward.score == score && (x.level[i].forward.ele < ele))) {
-			rank[i] += x.level[i].span
-			x = x.level[i].forward
+		for x.Level[i].Forward != nil && (x.Level[i].Forward.Score < Score ||
+			(x.Level[i].Forward.Score == Score && (x.Level[i].Forward.Ele < Ele))) {
+			rank[i] += x.Level[i].Span
+			x = x.Level[i].Forward
 		}
 		update[i] = x
 	}
-	x = x.level[0].forward
-	if x != nil && score == x.score && ele == x.ele {
-		zslDeleteNode(zsl, x, update)
+	x = x.Level[0].Forward
+	if x != nil && Score == x.Score && Ele == x.Ele {
+		DeleteNode(Sl, x, update)
 		return true
 	}
 	return false
 }
 
-func zslDeleteNode(zsl *zSkipList, x *zSkipListNode, update []*zSkipListNode) {
-	for i := 0; i < zsl.level; i++ {
-		if update[i].level[i].forward == x {
-			update[i].level[i].span += x.level[i].span - 1
-			update[i].level[i].forward = x.level[i].forward
+func DeleteNode(Sl *skiplist.SkipList, x *skiplist.Node, update []*skiplist.Node) {
+	for i := 0; i < Sl.Level; i++ {
+		if update[i].Level[i].Forward == x {
+			update[i].Level[i].Span += x.Level[i].Span - 1
+			update[i].Level[i].Forward = x.Level[i].Forward
 		} else {
-			update[i].level[i].span -= 1
+			update[i].Level[i].Span -= 1
 		}
 	}
 
-	if x.level[0].forward != nil {
-		x.level[0].forward.backward = x.backward
+	if x.Level[0].Forward != nil {
+		x.Level[0].Forward.Backward = x.Backward
 	} else {
-		zsl.tail = x.backward
+		Sl.Tail = x.Backward
 	}
 
-	for zsl.level > 1 && zsl.header.level[zsl.level-1].forward == nil {
-		zsl.level--
+	for Sl.Level > 1 && Sl.Header.Level[Sl.Level-1].Forward == nil {
+		Sl.Level--
 	}
-	zsl.length--
+	Sl.Length--
 }
 
-func zsetScore(zobj *utils.GKVDBObject, member string, score *float64) int {
-	if zobj == nil || member == "" {
+func SetScore(obj *utils.GKVDBObject, member string, Score *float64) int {
+	if obj == nil || member == "" {
 		return utils.C_ERR
 	}
-	
-	if zobj.ObjectType == utils.OBJ_ZSET {
-		zs := zobj.Ptr.(*zSet)
-		dict := zs.dict
+
+	if obj.ObjectType == utils.OBJ_SET {
+		s := obj.Ptr.(*Set)
+		dict := s.dict
 		de := dictFind(dict, member)
 
 		if de == nil {
 			return utils.C_ERR
 		}
 		value := de.Ptr.(float64)
-		*score = value
+		*Score = value
 	} else {
 		panic("Unknown sorted set encoding")
 	}

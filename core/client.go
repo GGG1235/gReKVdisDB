@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"gReKVdisDB/aof"
-	"gReKVdisDB/core/date_structure/lists"
+	"gReKVdisDB/date_structure/lists"
 	"gReKVdisDB/proto"
 	"gReKVdisDB/utils"
 	"log"
@@ -26,7 +26,7 @@ type Client struct {
 
 const CLIENT_PUBSUB = (1 << 18)
 
-type dict map[string]*utils.GKVDBObject
+type Dict map[string]*utils.GKVDBObject
 
 func SetCommand(c *Client, s *Server) {
 	objKey := c.Argv[1]
@@ -45,7 +45,7 @@ func SetCommand(c *Client, s *Server) {
 
 
 func GetCommand(c *Client, s *Server) {
-	o := lookupKey(c.Db, c.Argv[1])
+	o := LookupKey(c.Db, c.Argv[1])
 	if o != nil {
 		addReplyStatus(c, o.Ptr.(string))
 	} else {

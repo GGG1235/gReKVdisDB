@@ -2,13 +2,13 @@ package core
 
 import "math"
 
-const GEO_STEP_MAX = 26 /* 26*2 = 52 bits. */
+const STEP_MAX = 26 /* 26*2 = 52 bits. */
 
 /* Limits from EPSG:900913 / EPSG:3785 / OSGEO:41001 */
-const GEO_LAT_MIN = -85.05112878
-const GEO_LAT_MAX = 85.05112878
-const GEO_LONG_MIN = -180
-const GEO_LONG_MAX = 180
+const LAT_MIN = -85.05112878
+const LAT_MAX = 85.05112878
+const LONG_MIN = -180
+const LONG_MAX = 180
 const D_R = (math.Pi / 180.0)
 
 /// @brief Earth's quatratic mean radius for WGS-84
@@ -86,10 +86,10 @@ func hashEncodeType(longitude float64, latitude float64, step uint8, hash *HashB
 /* These are constraints from EPSG:900913 / EPSG:3785 / OSGEO:41001 */
 /* We can't code at the north/south pole. */
 func hashGetCoordRange(long_range *HashRange, lat_range *HashRange) {
-	long_range.max = GEO_LONG_MAX
-	long_range.min = GEO_LONG_MIN
-	lat_range.max = GEO_LAT_MAX
-	lat_range.min = GEO_LAT_MIN
+	long_range.max = LONG_MAX
+	long_range.min = LONG_MIN
+	lat_range.max = LAT_MAX
+	lat_range.min = LAT_MIN
 }
 
 func hashEncode(long_range *HashRange, lat_range *HashRange, longitude float64, latitude float64, step uint8,
@@ -185,7 +185,7 @@ func hashAlign52Bits(hash HashBits) uint64 {
 }
 
 func decodehash(bits float64, xy *[2]float64) bool {
-	hash := HashBits{bits: uint64(bits), step: GEO_STEP_MAX}
+	hash := HashBits{bits: uint64(bits), step: STEP_MAX}
 	return hashDecodeToLongLatWGS84(hash, xy)
 }
 func hashDecodeToLongLatWGS84(hash HashBits, xy *[2]float64) bool {

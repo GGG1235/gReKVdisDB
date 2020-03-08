@@ -1,7 +1,7 @@
 package core
 
 import (
-	"gReKVdisDB/core/date_structure/lists"
+	"gReKVdisDB/date_structure/lists"
 	"gReKVdisDB/utils"
 	"strconv"
 )
