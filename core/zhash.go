@@ -69,8 +69,6 @@ func hashEncodeType(longitude float64, latitude float64, step uint8, hash *HashB
 	return hashEncode(&r[0], &r[1], longitude, latitude, step, hash)
 }
 
-/* These are constraints from EPSG:900913 / EPSG:3785 / OSGEO:41001 */
-/* We can't code at the north/south pole. */
 func hashGetCoordRange(long_range *HashRange, lat_range *HashRange) {
 	long_range.max = LONG_MAX
 	long_range.min = LONG_MIN
