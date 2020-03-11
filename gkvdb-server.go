@@ -13,12 +13,8 @@ import (
 	"runtime"
 	"syscall"
 	"time"
+	. "gReKVdisDB/config"
 )
-
-const (
-	DefaultAofFile = "./aof/gkvdb.aof"
-)
-
 
 var gkvdb = new(core.Server)
 
