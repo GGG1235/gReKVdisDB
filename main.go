@@ -7,6 +7,5 @@ import (
 
 func main() {
 	sysType := runtime.GOOS
-
 	fmt.Println(sysType)
 }
