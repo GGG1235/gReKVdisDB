@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"time"
 )
@@ -36,7 +37,13 @@ func main() {
 	}
 
 	c := make(chan os.Signal)
-	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGUSR1, syscall.SIGUSR2)
+	sysType := runtime.GOOS
+
+	if sysType == "windows"{
+		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	} else{
+		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.Signal(0x1e), syscall.Signal(0x1f))
+	}
 	go sigHandler(c)
 
 	initServer()
